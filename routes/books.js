@@ -5,7 +5,7 @@ const Book = require('../models/book');
 const Author = require('../models/author');
 const path = require('path');
 const fs = require('fs');
-const { query } = require('express');
+const { query, response } = require('express');
 const uploadPath = path.join('public',Book.coverImageBasePath);
 const imageMimeTypes = ['images/*.jpeg','images/*.png','images/*.gif'];
 
@@ -48,10 +48,11 @@ router.get('/',async (req,res) => {
    
     
 })
-
-router.get('/new',async (req,res) => {
-    renderNewpage(res, new Book());
+ 
+router.get('/new',async (req,res) =>{
+  renderNewpage(res, new Book())
 })
+
 
 router.post('/', upload.single('cover'), async (req, res) => {
   const fileName = req.file != null ? req.file.filename : null;
@@ -70,7 +71,7 @@ router.post('/', upload.single('cover'), async (req, res) => {
     console.log('Hello World2');
     const newBook = await book.save();
     console.log('Hello World3');
-    res.redirect(`books`);
+    res.redirect(`books/${newBook.id}`);
   }
   catch{
     console.log('Error message');
@@ -88,19 +89,110 @@ function removeBookCover(fileName)
   })
 }
 
+router.get('/:id', async(req,res) =>{
+  try{
+   const book = await Book.findById(req.params.id)
+                          .populate('author')
+                          .exec()
+   res.render('books/show',{book : book})
+  }
+  catch{
+   res.redirect('/')
+  }
+})
+
+// Edit Book Routes
+router.get('/:id/edit',async (req,res) => {
+  try{
+    const book = await Book.findById(req.params.id)
+    renderEditPage(res, book)
+  }
+  catch{
+    res.redirect('/');
+  }
+})
+
+// Update book route
+router.put('/:id', upload.single('cover'), async (req, res) => {
+  const fileName = req.file != null ? req.file.filename : null;
+  let book
+  
+  try{
+    book = await Book.findById(req.params.id)
+    book.title = req.body.title;
+    book.author = req.body.author;
+    book.publishDate = new Date(req.body.publishDate);
+    book.pageCount = req.body.pageCount;
+    book.description = req.body.description;
+    book.coverImageName = fileName;
+    if(req.body.cover != '' && req.body.cover != null)
+    {
+
+    }
+    await book.save()
+    res.redirect(`/books/${book.id}`);
+  }
+  catch(e){
+
+    console.log(e);
+    if(book != null){
+       renderEditPage(res, book, true)
+    }
+    else{
+       redirect('/');
+    } 
+  }
+});
+
+router.delete('/:id',async (req,res) =>{
+  let book
+  try{
+   book = await Book.findById(req.params.id)
+   await book.remove()
+   response.redirect('/books')
+  }
+  catch{
+    if(book != null){
+      res.render('books/show',{
+        book: book,
+        errorMessage: 'Could not remove book'
+      })
+    }
+    else{
+      res.redirect('/')
+    }
+  }
+})
+
 async function renderNewpage(res, book, hasError = false){
+  renderFormPage(res, book, 'new', hasError);
+}
+
+async function renderEditPage(res, book, hasError = false){
+  renderFormPage(res, book, 'edit', hasError);
+}
+
+async function renderFormPage(res, book, form, hasError = false){
   try{
     const authors = await Author.find({})
     const params = { 
       authors: authors,
       book: book
     }
-    if(hasError){ params.errorMessage ="Error Creating Book";}
-    res.render('books/new', params);
+    if(hasError){
+      if(form === 'edit'){
+        params.errorMessage = 'Error updating Book';
+      }
+      else{
+        params.errorMessage = 'Error creating Book';
+      }
+    }
+    res.render(`books/${form}`, params);
  }
  catch{
      res.redirect('/books');
  }
- 
 }
+
+
 module.exports = router;
