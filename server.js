@@ -11,7 +11,7 @@ const bodyParser = require('body-parser');
 const indexRouter = require('./routes/index');
 const authorRouter = require('./routes/authors');
 const bookRouter = require('./routes/books');
-
+const methodOverride = require('method-override');
 const mongoose = require('mongoose');
  app.set('view engine', 'ejs');
  app.set('views',__dirname + '/views');
@@ -20,7 +20,7 @@ const mongoose = require('mongoose');
  app.use(express.static('public'));
  app.use(bodyParser.urlencoded({limit: '10mb', extended: false}));
  app.use('/',indexRouter);
-
+ app.use(methodOverride('_method'));
  app.use('/authors',authorRouter);
  app.use('/books',bookRouter);
  const PORT = process.env.PORT || 3000;   
